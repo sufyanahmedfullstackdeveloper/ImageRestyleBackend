@@ -5,12 +5,13 @@ const FormData = require("form-data");
 const axios = require("axios");
 require("dotenv").config();
 
+
 const worker = new Worker(
   "imageProcessing",
   async (job) => {
     const { imageUrl } = job.data;
 
-    console.log("Worker received job data:", job.data);
+    console.log("Worker received job data:", job.data,process.env.DEEP_AI_API_URL);
     console.log("Processing image at:", imageUrl);
 
     if (!imageUrl) {
@@ -26,18 +27,14 @@ const worker = new Worker(
       const fileStream = fs.createReadStream(imageUrl);
       formData.append("image", fileStream);
 
-      const response = await axios.post(
-        "https://api.deepai.org/api/studio-ghibli",
-        formData,
-        {
-          headers: {
-            ...formData.getHeaders(),
-            "api-key":
-              process.env.DEEPAI_API_KEY ||
-              "b8293e8a-768a-4fc1-b6f8-e200e6f614b7",
-          },
-        }
-      );
+      const response = await axios.post(process.env.DEEP_AI_API_URL, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          "api-key":
+            process.env.DEEPAI_API_KEY ||
+            "b8293e8a-768a-4fc1-b6f8-e200e6f614b7",
+        },
+      });
 
       const { output_url: ghibliUrl } = response.data;
 
