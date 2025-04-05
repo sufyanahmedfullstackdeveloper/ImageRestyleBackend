@@ -1,53 +1,32 @@
-const fs = require("fs");
-const FormData = require("form-data"); 
-
-const uploadImage = async (req, res) => {
+const connection = require("../../config/redis.config");
+const path = require("path");
+const addImageProducer = require("../../bullmq/producers/image.producer");
+const imageRestyle = async (req, res) => {
   try {
+    const imagePath = path.resolve(req.file.path);
 
-
-    if (!req.file) {
-      return res.status(400).send("No photo uploaded");
-    }
-
-    const formData = new FormData();
-    const fileStream = fs.createReadStream(req.file.path);
-
-    formData.append("image", fileStream, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype,
-    });
-
- 
-    const formHeaders = formData.getHeaders();
-
-    const resp = await fetch(process.env.DEEP_AI_API_URL, {
-      method: "POST",
-      headers: {
-        "api-key": process.env.DEEP_AI_API_KEY,
-        ...formHeaders, 
-      },
-      body: formData,
-    });
-
-    if (!resp.ok) {
-      throw new Error(`API request failed with status ${resp.status}`);
-    }
-
-    const data = await resp.json();
-    console.log(data);
-
-    res.status(200).json(data);
+    const job = await addImageProducer(imagePath);
+    console.log(job.id, "job");
+    return res.json({ message: "Image queued for processing", jobId: job.id });
   } catch (error) {
-    console.error("Error uploading image:", error);
-    res.status(500).send(`Error processing image: ${error.message}`);
-  } finally {
-  
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error("Error deleting temp file:", err);
-      });
-    }
+    console.log(error);
+  }
+};
+const imageStatus = async (req, res) => {
+  const jobId = req.params.jobId;
+  const result = await connection.get(`job:${jobId}`);
+  if (result) {
+    const parsedResult = JSON.parse(result);
+
+    await connection.del(`job:${jobId}`);
+    console.log(parsedResult);
+    return res.json({
+      status: parsedResult.status,
+      resultUrl: parsedResult.url,
+    });
+  } else {
+    res.json({ status: "processing" });
   }
 };
 
-module.exports = { uploadImage };
+module.exports = { imageRestyle, imageStatus };
