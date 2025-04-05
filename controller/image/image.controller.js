@@ -15,17 +15,25 @@ const imageRestyle = async (req, res) => {
 const imageStatus = async (req, res) => {
   const jobId = req.params.jobId;
   const result = await connection.get(`job:${jobId}`);
+
   if (result) {
     const parsedResult = JSON.parse(result);
 
     await connection.del(`job:${jobId}`);
-    console.log(parsedResult);
+    
+    if (parsedResult.status === "failed") {
+      return res.status(400).json({
+        status: "failed",
+        error: parsedResult.error
+      });
+    }
+
     return res.json({
       status: parsedResult.status,
       resultUrl: parsedResult.url,
     });
   } else {
-    res.json({ status: "processing" });
+    return res.json({ status: "processing" });
   }
 };
 

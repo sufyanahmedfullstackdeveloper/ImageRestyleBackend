@@ -36,8 +36,6 @@ const worker = new Worker(
               process.env.DEEPAI_API_KEY ||
               "b8293e8a-768a-4fc1-b6f8-e200e6f614b7",
           },
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
         }
       );
 
@@ -66,6 +64,13 @@ worker.on("completed", async (job, result) => {
   );
 });
 
-worker.on("failed", (job, err) => {
+worker.on("failed", async (job, err) => {
   console.error(`Job ${job.id} failed: ${err.message}`);
+  await connection.set(
+    `job:${job.id}`,
+    JSON.stringify({
+      status: "failed",
+      error: err.message,
+    })
+  );
 });
